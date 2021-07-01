@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { FormEvent, useState } from "react";
 import { useParams } from "react-router";
 import logoImg from "../assets/images/logo.svg";
@@ -11,12 +12,55 @@ type RoomParams = {
   id: string;
 }
 
+type FirebaseQuestions = Record<string, {
+  author: {
+    name: string,
+    avatar: string,
+  },
+  content: string;
+  isAnwsered: boolean;
+  isHighlighted: boolean;
+}>;
+
+type Question = {
+  id: string;
+  author: {
+    name: string,
+    avatar: string,
+  },
+  content: string;
+  isAnwsered: boolean;
+  isHighlighted: boolean;
+}
+
 export function Room() {
   const { user } = useAuth();
   const params = useParams<RoomParams>();
   const roomId = params.id;
 
   const [newQuestion, setNewQuestion] = useState("");
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [title, setTitle] = useState("");
+
+  useEffect(() => {
+    const roomRef = database.ref(`rooms/${roomId}`);
+
+    roomRef.once('value', room => {
+      const firebaseQuestions: FirebaseQuestions = room.val().questions ?? {};
+
+      const parsedQuestions = Object.entries(firebaseQuestions).map(([key, value]) => {
+        return {
+          id: key,
+          content: value.content,
+          author: value.author,
+          isHighlighted: value.isHighlighted,
+          isAnwsered: value.isAnwsered
+        }
+      });
+      setTitle(room.val().title);
+      setQuestions(parsedQuestions);      
+    })
+  }, [roomId]);
 
   async function handleCreateNewQuestion(event: FormEvent) {
     event.preventDefault();
@@ -54,8 +98,10 @@ export function Room() {
       </header>
       <main>
         <div className="room-title">
-          <h1>Sala React</h1>
-          <span>4 Perguntas</span>
+          <h1>Sala {title}</h1>
+          {
+            questions.length > 0 && <span>{questions.length} Perguntas</span>
+          }
         </div>
         <form onSubmit={handleCreateNewQuestion}>
           <textarea
